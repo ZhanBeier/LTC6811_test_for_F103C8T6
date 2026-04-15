@@ -259,7 +259,7 @@ uint8_t LTC6804_rdcv(uint8_t reg, // Controls which cell voltage register is rea
     uint8_t current_cell;
 
 
-    uint8_t cell_data[120];
+    uint8_t cell_data[120] = "";
     uint8_t pec_error = 0;
     uint16_t parsed_cell;
     uint16_t received_pec;
@@ -1327,9 +1327,11 @@ void LTC6804_adcvax() {
     uint16_t cmd_pec;
 
     //1
-    cmd[0] = 0x05; //滤波模式，一个转换要270ms
-    //cmd[1] = 0x6F;// MD[1：0]=01:27KHz快速   10:7KHz标准  11:26Hz滤波模式
-    cmd[1] = 0xeF;
+    cmd[0] = 0x05;
+    cmd[1] = 0x6F; // MD[1：0]=01:27KHz快速   10:7KHz标准  11:26Hz滤波模式
+    //cmd[1] = 0xeF;
+    //cmd[1]如果是0x6f就是7kHZ标准模式，0xEF是滤波模式
+
     //2
     cmd_pec = pec15_calc(2, cmd);
     cmd[2] = (uint8_t) (cmd_pec >> 8);
