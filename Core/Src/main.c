@@ -105,12 +105,12 @@ int main(void) {
     MX_GPIO_Init();
     MX_ADC1_Init();
     MX_USART1_UART_Init();
-    MX_SPI2_Init();
+    MX_SPI1_Init();
     /* USER CODE BEGIN 2 */
     LTC6804_initialize();
     wakeup_sleep();
     LTC6804_wrcfg(1, tx_cfg);
-    uint16_t cell_voltage[1][12] = {};
+    uint16_t cell_voltage[1][12] = {}, pec_error = 0;
 
     char output_buf[256] = "";
     /* USER CODE END 2 */
@@ -120,11 +120,13 @@ int main(void) {
     while (1) {
         wakeup_sleep();
         LTC6804_adcvax();
-        HAL_Delay(10);
-        LTC6804_rdcv(0, 1, cell_voltage);
+        HAL_Delay(50);
+        pec_error = LTC6804_rdcv(0, 1, cell_voltage);
 
         snprintf(output_buf, 32, "%.4fv, \n\r", (float) cell_voltage[0][1] / 10000);
         HAL_UART_Transmit(&huart1, (uint8_t *) output_buf, 32, 10);
+
+
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */

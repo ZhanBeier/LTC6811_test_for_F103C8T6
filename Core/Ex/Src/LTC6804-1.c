@@ -13,10 +13,10 @@
 #include "spi.h"
 #include "main.h"
 
-//PB12作为CS引脚
-#define LTC6804_CS       GPIO_PIN_12
-#define LTC6804_CS_high  HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_SET)
-#define LTC6804_CS_low   HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_RESET)
+//PA4作为CS引脚
+#define LTC6804_CS       GPIO_PIN_4
+#define LTC6804_CS_high  HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET)
+#define LTC6804_CS_low   HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET)
 /*!
   6804 conversion command variables.
   6804转换命令变量。
@@ -1119,7 +1119,7 @@ void spi_write_array(uint8_t len, // Option: Number of bytes to be written on th
         // spi2_read((int8_t)data[i]);
      }
      */
-    HAL_SPI_Transmit(&hspi2, data, len, 10);
+    HAL_SPI_Transmit(&hspi1, data, len, 10);
 }
 
 /*!
@@ -1134,8 +1134,8 @@ void spi_write_array(uint8_t len, // Option: Number of bytes to be written on th
 
 void spi_write_read(uint8_t tx_Data[], uint8_t tx_len,
                     uint8_t *rx_data, uint8_t rx_len) {
-    HAL_SPI_Transmit(&hspi2, tx_Data, tx_len, 10);
-    HAL_SPI_Receive(&hspi2, rx_data, rx_len, 10);
+    HAL_SPI_Transmit(&hspi1, tx_Data, tx_len, 10);
+    HAL_SPI_Receive(&hspi1, rx_data, rx_len, 10);
 }
 
 
