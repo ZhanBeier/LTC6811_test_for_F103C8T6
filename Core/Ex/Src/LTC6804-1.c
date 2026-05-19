@@ -1053,6 +1053,8 @@ void wakeup_idle() {
     LTC6804_CS_low;
     //delayMicroseconds(5); //Guarantees the isoSPI will be in ready mode保证isoSPI将处于就绪模式
     //HAL_Delay(3);   //一切正常
+    uint8_t test[1] = {0xAB};
+    HAL_SPI_Transmit(&hspi1, test, 1, 1);
     HAL_Delay(1);
     //delay_us(5);  //延时太短，导致无法采集內部器件參數 ADC
     LTC6804_CS_high;

@@ -74,6 +74,50 @@ void init_cfg(void) {
     }
 }
 
+void MY_LTC6804_rdcv_reg(uint8_t reg, //Determines which cell voltage register is read back 确定读回哪个单元电压寄存器
+                         uint8_t total_ic, //the number of ICs in the
+                         uint8_t *data //An array of the unparsed cell codes  未解析单元格代码的数组
+) {
+    const uint8_t REG_LEN = 8; //number of bytes in each ICs register + 2 bytes for the PEC  每个ICs寄存器的字节数+ 2字节的PEC
+    uint8_t cmd[4];
+    uint16_t cmd_pec;
+
+    //1
+    if (reg == 1) //1: RDCVA
+    {
+        cmd[1] = 0x04;
+        cmd[0] = 0x00;
+    } else if (reg == 2) //2: RDCVB
+    {
+        cmd[1] = 0x06;
+        cmd[0] = 0x00;
+    } else if (reg == 3) //3: RDCVC
+    {
+        cmd[1] = 0x08;
+        cmd[0] = 0x00;
+    } else if (reg == 4) //4: RDCVD
+    {
+        cmd[1] = 0x0A;
+        cmd[0] = 0x00;
+    }
+
+    //2
+    cmd_pec = pec15_calc(2, cmd);
+    cmd[2] = (uint8_t) (cmd_pec >> 8);
+    cmd[3] = (uint8_t) (cmd_pec);
+
+    //3
+    wakeup_idle(); //This will guarantee that the LTC6804 isoSPI port is awake. This command can be removed.
+    wakeup_idle();
+    wakeup_idle();
+    wakeup_idle();
+    wakeup_idle();
+    //4
+    HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4, GPIO_PIN_RESET);
+    spi_write_read(cmd, 4, data, (REG_LEN * total_ic));
+    HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4, GPIO_PIN_SET);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -109,8 +153,8 @@ int main(void) {
     /* USER CODE BEGIN 2 */
     LTC6804_initialize();
     wakeup_sleep();
-    uint16_t cell_voltage[1][12] = {}, pec_error = 255, temp = 0;
-    uint8_t origin_data[8] = {}, auxregdata[8] = {};
+    volatile uint16_t cell_voltage[3][12] = {0}, temp = 0;
+    volatile uint8_t origin_data[24] = {}, auxregdata[16] = {};
 
     char output_buf[256] = "";
     /* USER CODE END 2 */
@@ -119,39 +163,46 @@ int main(void) {
     /* USER CODE BEGIN WHILE */
     while (1) {
         wakeup_sleep();
-        LTC6804_wrcfg(1, tx_cfg);
+        LTC6804_wrcfg(2, tx_cfg);
         HAL_Delay(1);
         LTC6804_adcvax();
         HAL_Delay(20);
         for (int i = 1; i < 5; ++i) {
-            LTC6804_rdcv_reg(i, 1, origin_data);
-            uint16_t pec = pec15_calc(6, origin_data);
-            if ((pec & 0xff00) >> 8 == origin_data[6] && (pec & 0xff) == origin_data[7])
-                pec_error = 0;
-            else pec_error = 255;
+            LTC6804_rdcv_reg(i, 3, origin_data);
             for (int j = 0; j < 3; j++) {
                 cell_voltage[0][i * 3 - 3 + j] = origin_data[2 * j] + (origin_data[2 * j + 1] << 8);
-                sniprintf(output_buf, 32, "CELL%2d %.4f\n", i * 3 - 2 + j,
+                /*
+                 sniprintf(output_buf, 32, "CELL%2d %.4f\n", i * 3 - 2 + j,
                           (float) cell_voltage[0][i * 3 - 3 + j] / 10000);
                 HAL_UART_Transmit(&huart1, (uint8_t *) output_buf, 16, 10);
+                 */
             }
-            /*if (pec_error == 0)
-                sniprintf(output_buf, 5, "OK!\n\r");
-            else
-                sniprintf(output_buf, 5, "ERR\n\r");
-            HAL_UART_Transmit(&huart1, (uint8_t *) output_buf, 5, 10);
-             */
-            LTC6804_adax();
-            HAL_Delay(3);
-            LTC6804_rdaux_reg(2, 1, auxregdata);
-            temp = auxregdata[0] | (auxregdata[1] << 8);
-            pec = pec15_calc(6, auxregdata);
-            if ((pec & 0xff00) >> 8 == auxregdata[6] && (pec & 0xff) == auxregdata[7])
-                pec_error = 0;
-            else pec_error = 255;
+            for (int j = 4; j < 7; j++) {
+                cell_voltage[1][i * 3 - 7 + j] = origin_data[2 * j] + (origin_data[2 * j + 1] << 8);
+                /*
+                 sniprintf(output_buf, 32, "CELL%2d %.4f\n", i * 3 - 2 + j,
+                          (float) cell_voltage[0][i * 3 - 3 + j] / 10000);
+                HAL_UART_Transmit(&huart1, (uint8_t *) output_buf, 16, 10);
+                 */
+            }
+            for (int j = 8; j < 11; j++) {
+                cell_voltage[2][i * 3 - 11 + j] = origin_data[2 * j] + (origin_data[2 * j + 1] << 8);
+                /*
+                 sniprintf(output_buf, 32, "CELL%2d %.4f\n", i * 3 - 2 + j,
+                          (float) cell_voltage[0][i * 3 - 3 + j] / 10000);
+                HAL_UART_Transmit(&huart1, (uint8_t *) output_buf, 16, 10);
+                 */
+            }
+            uint16_t pec_2 = pec15_calc(6, origin_data + 8);
+            uint8_t pec = (((pec_2 & 0xff00) >> 8) == origin_data[14]) && ((pec_2 & 0x00ff) == origin_data[15]);
+
             HAL_Delay(10);
         }
-
+        //LTC6804_adax();
+        HAL_Delay(10);
+        LTC6804_rdaux_reg(1, 2, auxregdata);
+        //LTC6804_rdaux_reg(2, 1, auxregdata);
+        temp = auxregdata[0] | (auxregdata[1] << 8);
 
         /* USER CODE END WHILE */
 
